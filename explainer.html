@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Bucket Conveyor Simulator | Design Explainer</title>
+    <style>
+        :root {
+            --ink: #172126;
+            --muted: #5c6b70;
+            --paper: #f7f4ed;
+            --panel: #fffdf8;
+            --line: #d9d5c9;
+            --teal: #087f82;
+            --amber: #c46b28;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            color: var(--ink);
+            background: var(--paper);
+            font: 16px/1.55 Georgia, "Times New Roman", serif;
+        }
+
+        main {
+            max-width: 980px;
+            margin: 0 auto;
+            padding: 56px 28px 64px;
+        }
+
+        header {
+            border-bottom: 3px solid var(--ink);
+            margin-bottom: 30px;
+            padding-bottom: 24px;
+        }
+
+        .kicker {
+            margin: 0 0 8px;
+            color: var(--teal);
+            font: 700 0.78rem/1.2 Arial, sans-serif;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+
+        h1, h2 { font-family: Arial, sans-serif; }
+
+        h1 {
+            max-width: 760px;
+            margin: 0;
+            font-size: clamp(2.3rem, 6vw, 4.7rem);
+            line-height: 0.98;
+            letter-spacing: -0.04em;
+        }
+
+        .standfirst {
+            max-width: 720px;
+            margin: 18px 0 0;
+            color: var(--muted);
+            font-size: 1.15rem;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 18px;
+        }
+
+        section {
+            padding: 22px 22px 20px;
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-top: 5px solid var(--teal);
+        }
+
+        section:nth-child(2n) { border-top-color: var(--amber); }
+
+        h2 {
+            margin: 0 0 10px;
+            font-size: 1.3rem;
+            line-height: 1.1;
+        }
+
+        p { margin: 0 0 12px; }
+        p:last-child { margin-bottom: 0; }
+
+        strong { color: var(--teal); }
+
+        code {
+            padding: 0.08em 0.3em;
+            background: #e9eee9;
+            font: 0.9em Consolas, "Courier New", monospace;
+        }
+
+        .sequence {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 7px;
+            margin: 16px 0 14px;
+            font: 700 0.82rem Arial, sans-serif;
+        }
+
+        .sequence span {
+            padding: 7px 10px;
+            color: white;
+            background: var(--teal);
+        }
+
+        .sequence span:last-child { background: var(--amber); }
+
+        .note {
+            margin-top: 18px;
+            padding: 14px 16px;
+            border-left: 4px solid var(--amber);
+            background: #fff3e4;
+        }
+
+        footer {
+            margin-top: 24px;
+            color: var(--muted);
+            font: 0.82rem/1.4 Arial, sans-serif;
+        }
+
+        @media (max-width: 680px) {
+            main { padding: 34px 16px 42px; }
+            .grid { grid-template-columns: 1fr; }
+            section { padding: 18px; }
+        }
+    </style>
+</head>
+<body>
+<main>
+    <header>
+        <p class="kicker">Implementation explainer</p>
+        <h1>Tracking a ball through a moving eight-slot conveyor</h1>
+        <p class="standfirst">The simulator treats the conveyor position as the identity signal. That is deliberately simple and deterministic for a synthetic camera, while making the boundary between a laboratory model and a production inspection system clear.</p>
+    </header>
+
+    <div class="grid">
+        <section>
+            <h2>Identity across eight appearances</h2>
+            <p>Every station owns eight fixed <code>BucketSlot</code> positions. On each trigger, <code>ConveyorStation::onTrigger</code> shifts the existing contents one position to the right and spawns a new position at slot 0. A physical ball therefore appears at slots 0 through 7, one observation per trigger, before it exits.</p>
+            <div class="sequence" aria-label="Ball path through the conveyor">
+                <span>slot 0</span><span>slot 1</span><span>slot 2</span><span>slot 3</span>
+                <span>slot 4</span><span>slot 5</span><span>slot 6</span><span>slot 7</span>
+            </div>
+            <p><code>StationWorker</code> keeps a <code>BallTrack</code> containing a generated track ID, its current slot, observation count, and measurements. For slot <em>i</em>, the worker inherits the track from slot <em>i - 1</em>; the contents leaving slot 7 are finalized. Color, radius, and diameter are averaged, while defect observations are combined by majority vote.</p>
+        </section>
+
+        <section>
+            <h2>Empty and neighboring slots</h2>
+            <p>An empty bucket is represented by <code>detectedBall == false</code>. It creates no track and contributes no observation. Because every ROI is tied to one known slot, two adjacent balls are kept separate even when their colors or sizes are similar: slot 2 can only inherit slot 1, never slot 3 or a global “nearest” candidate.</p>
+            <div class="note"><strong>Simulation boundary.</strong> This positional identity is reliable when triggers are not missed, ROIs are aligned, and balls move exactly one slot per trigger. If a ball is not detected for a frame, the current implementation cannot bridge the gap; a later detection starts a new track. The generated <code>trueId</code> is not used by the worker, so this is positional tracking rather than hidden ground-truth matching.</div>
+        </section>
+
+        <section>
+            <h2>Scaling to twelve stations</h2>
+            <p>The pipeline is parameterized by <code>stationCount</code>. <code>ConveyorManager</code> creates one station, worker, and <code>QThread</code> per entry, then loops over the collection for startup, triggering, metrics, and shutdown. Changing construction from <code>ConveyorManager(3)</code> to <code>ConveyorManager(12)</code> needs no tracking redesign.</p>
+            <p>Each station has its own ID, timer, trigger counter, slots, and tracks. The default timers are staggered by station index, and metrics are keyed by that ID rather than by a fixed three-station array. The UI would still need product changes: it currently displays only station 0 and contains three-station status wording. At larger counts, a bounded worker pool could also be considered instead of one thread per station.</p>
+        </section>
+
+        <section>
+            <h2>Synchronization and race risks</h2>
+            <p>Each station and its worker live in the same Qt thread, so frame processing and track mutation are serialized by that thread’s event loop. Track state has one owner and does not require a mutex. <code>QImage</code> and verdict data are passed by value, and <code>BallFusedVerdict</code> is registered for queued signal delivery.</p>
+            <p>Shutdown stops timers, flushes active tracks with a blocking queued call, then quits and waits for each thread. The manager and UI receive cross-thread callbacks through queued delivery.</p>
+            <div class="note"><strong>Remaining caveat.</strong> The worker’s frame callback is connected before the manager’s timing callback. Processing can therefore complete before the manager records the frame start, leaving latency or pending-frame metrics without a matching timestamp. Manual triggers can also interleave with timer events, and starting pipelines repeatedly creates additional timers.</div>
+        </section>
+
+        <section>
+            <h2>From simulation to camera and PLC</h2>
+            <p>The simulator produces one perfectly aligned synthetic 800 × 120 frame synchronously for each timer or manual trigger. It assumes a local monotonic trigger index, fixed bucket ROIs, no exposure delay, and no dropped, duplicated, delayed, or out-of-order frames.</p>
+            <p>A real camera/PLC integration would need hardware timestamps or sequence numbers, trigger debouncing, bounded queues, backpressure, and explicit handling for late or missing frames. Camera calibration would locate bucket boundaries and detect drift; exposure and readout jitter could place a frame between bucket positions. Misaligned or partially visible buckets would require confidence checks and an unresolved-frame policy rather than silently creating a new track.</p>
+            <p>For continuity across a missed observation, the system would need an encoder/PLC position, persistent object IDs, or motion-and-appearance matching. If several stations inspect the same ball, their timestamps and IDs would also need a cross-station correlation layer. The current <code>capturer</code> class is only a stub, so these hardware concerns are intentionally outside the simulator.</p>
+        </section>
+    </div>
+
+    <footer>Source of truth: <code>ConveyorStation</code>, <code>StationWorker</code>, <code>ConveyorManager</code>, and the shared types in this project.</footer>
+</main>
+</body>
+</html>
