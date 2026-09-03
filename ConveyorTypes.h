@@ -4,6 +4,7 @@
 #include <QString>
 #include <QVector>
 #include <QUuid>
+#include <QMetaType>
 
 struct DefectPatch {
     bool exists = false;
@@ -29,6 +30,7 @@ struct BucketSlot {
 // CV observation for a single bucket slot in one frame
 struct BucketObservation {
     int slotIndex = 0;       // 0 to 7
+    uint64_t triggerIndex = 0;
     bool detectedBall = false;
     QColor measuredColor;
     double measuredRadius = 0.0;
@@ -55,4 +57,8 @@ struct BallFusedVerdict {
     bool isDefective;
     double maxDefectAreaObserved;
     int totalFramesTracked;
+    double confidence = 0.0;
+    QVector<uint64_t> contributingTriggers;
 };
+
+Q_DECLARE_METATYPE(BallFusedVerdict)

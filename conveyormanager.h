@@ -3,6 +3,7 @@
 #include <QThread>
 #include <QVector>
 #include <QDebug>
+#include <QElapsedTimer>
 #include "ConveyorStation.h"
 #include "StationWorker.h"
 
@@ -12,6 +13,7 @@ public:
     explicit ConveyorManager(int stationCount = 3, QObject *parent = nullptr)
         : QObject(parent)
     {
+        qRegisterMetaType<BallFusedVerdict>("BallFusedVerdict");
         for (int i = 0; i < stationCount; ++i) {
             auto* station = new ConveyorStation(i);
             auto* worker = new StationWorker(i);
@@ -21,6 +23,7 @@ public:
             worker->moveToThread(thread);
 
             connect(station, &ConveyorStation::frameGenerated, worker, &StationWorker::processFrame);
+            connect(station, &ConveyorStation::frameGenerated, this, &ConveyorManager::frameGenerated);
             connect(worker, &StationWorker::ballVerdictFinalized, this, &ConveyorManager::onVerdictReceived);
 
             connect(thread, &QThread::finished, worker, &QObject::deleteLater);
@@ -49,16 +52,30 @@ public:
         }
     }
 
+    void triggerAll() {
+        for (ConveyorStation* station : m_stations) {
+            QMetaObject::invokeMethod(station, "triggerOnce", Qt::QueuedConnection);
+        }
+    }
+
+signals:
+    void frameGenerated(int stationId, uint64_t triggerIndex, QImage frame);
+    void verdictReady(int stationId, BallFusedVerdict verdict);
+
 private slots:
     void onVerdictReceived(int stationId, BallFusedVerdict verdict) {
-        qInfo().noquote() << QString("[STATION %1 VERDICT] Track: %2 | Obs Count: %3/8 | Color: RGB(%4,%5,%6) | Result: %7")
+        QStringList frames;
+        for (uint64_t trigger : verdict.contributingTriggers) frames.append(QString::number(trigger));
+        qInfo().noquote() << QString("[STATION %1 VERDICT] Track: %2 | Frames: %3 (%4/8) | Color: RGB(%5,%6,%7) | Result: %8")
             .arg(stationId)
             .arg(verdict.trackId.left(8))
+            .arg(frames.join(','))
             .arg(verdict.totalFramesTracked)
             .arg(verdict.dominantColor.red())
             .arg(verdict.dominantColor.green())
             .arg(verdict.dominantColor.blue())
             .arg(verdict.isDefective ? "REJECT (Defect Detected)" : "PASS (Clean)");
+        emit verdictReady(stationId, verdict);
     }
 
 private:

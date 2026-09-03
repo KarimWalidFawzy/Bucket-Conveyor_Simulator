@@ -2,6 +2,7 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include "conveyormanager.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -17,8 +18,11 @@ public:
 
 private slots:
     void on_pushButton_clicked();
+    void onFrameGenerated(int stationId, uint64_t triggerIndex, QImage frame);
+    void onVerdictReady(int stationId, BallFusedVerdict verdict);
 
 private:
     Ui::MainWindow *ui;
+    ConveyorManager *m_manager;
 };
 #endif // MAINWINDOW_H

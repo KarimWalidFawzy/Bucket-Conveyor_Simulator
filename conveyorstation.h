@@ -28,6 +28,10 @@ public slots:
         if (m_timer) m_timer->stop();
     }
 
+    void triggerOnce() {
+        onTrigger();
+    }
+
 signals:
     void frameGenerated(int stationId, uint64_t triggerIndex, QImage frame);
 
@@ -110,12 +114,14 @@ private:
             painter.drawEllipse(QPointF(centerX, centerY), r, r);
 
             if (ball.defect.exists) {
-                const double currentPitch = ball.defect.initialPitchRad + (ball.rollTicksElapsed * (M_PI / 4.0));
+                    // Rotation is around the horizontal axle, so the patch is
+                    // foreshortened as it passes over the visible hemisphere.
+                    const double currentPitch = ball.defect.initialPitchRad + (ball.rollTicksElapsed * (M_PI / 4.0));
                 const double sinPitch = qSin(currentPitch);
                 const double cosPitch = qCos(currentPitch);
                 const double normalizedVisible = qBound(0.0, qAbs(sinPitch), 1.0);
-                const double patchWidth = r * (0.35 + 0.65 * normalizedVisible);
-                const double patchHeight = r * (0.20 + 0.80 * normalizedVisible) * (ball.defect.angularCoverageRad / M_PI);
+                const double patchWidth = r * (0.35 + 0.65 * normalizedVisible) * (ball.defect.angularCoverageRad / M_PI);
+                const double patchHeight = r * (0.20 + 0.80 * normalizedVisible);
                 const double offsetY = -r * cosPitch * 0.35;
 
                 if (normalizedVisible > 0.05) {

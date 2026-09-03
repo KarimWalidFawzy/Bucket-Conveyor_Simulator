@@ -1,11 +1,17 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
+#include <QPixmap>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
+    m_manager = new ConveyorManager(3, this);
+    connect(m_manager, &ConveyorManager::frameGenerated, this, &MainWindow::onFrameGenerated);
+    connect(m_manager, &ConveyorManager::verdictReady, this, &MainWindow::onVerdictReady);
+    m_manager->startPipelines();
+    ui->statusbar->showMessage("3 stations running: 8-slot trigger pipeline ready");
 }
 
 MainWindow::~MainWindow()
@@ -16,12 +22,23 @@ MainWindow::~MainWindow()
 
 void MainWindow::on_pushButton_clicked()
 {
-    // Causes trigger to occur
-    //1. Entire bucket array shifts by 1
-    //2. Whatever was in bucket 8 exits the line i.e. discarded
-    //3. A new item - a ball or an empty slot is injected to bucket 1 at a random probabibilty {70% ball generation,30% empty}
-    //4. Every ball in the line rolls furtherwhether or not it changes bucket position this trigger — rotation is a function of triggers elapsed, not of bucket index.
-    //Empty slots shift forward exactly like filled slots — an empty bucket must visibly move through the sequence the same way a product would; it is never skipped or compressed.
-    //
+    m_manager->triggerAll();
+}
+
+void MainWindow::onFrameGenerated(int stationId, uint64_t triggerIndex, QImage frame)
+{
+    if (stationId == 0) {
+        ui->label->setPixmap(QPixmap::fromImage(frame).scaled(ui->label->size(), Qt::KeepAspectRatio, Qt::SmoothTransformation));
+        ui->statusbar->showMessage(QString("Station 0 | trigger %1 | all 8 buckets captured").arg(triggerIndex));
+    }
+}
+
+void MainWindow::onVerdictReady(int stationId, BallFusedVerdict verdict)
+{
+    ui->statusbar->showMessage(QString("Station %1 | ball %2 | %3 | %4 frames | confidence %5%%")
+        .arg(stationId).arg(verdict.trackId.left(8))
+        .arg(verdict.isDefective ? "REJECT" : "PASS")
+        .arg(verdict.totalFramesTracked)
+        .arg(qRound(verdict.confidence * 100.0)));
 }
 
