@@ -1,54 +1,58 @@
-#ifndef CONVEYORTYPES_H
-#define CONVEYORTYPES_H
+#pragma once
 #include <QImage>
 #include <QColor>
 #include <QString>
 #include <QVector>
 #include <QUuid>
-#include <memory>
 
-// Surface defect patch specifications
 struct DefectPatch {
     bool exists = false;
-    double angularCoverageRad = 0.0; // 90 deg (PI/2) or 180 deg (PI)
-    double centerAngleRad = 0.0;     // Initial position on sphere relative to roll axis
+    double angularCoverageRad = 0.0; // 90° or 180°
+    double initialPitchRad = 0.0;     // Initial angle relative to roll axis
 };
 
-// Represents a physical ball on the line
-struct Ball {
-    QString id;
+struct SimulatedBall {
+    QString trueId;
     QColor baseColor;
-    double radius;
+    double radius = 32.0;
     DefectPatch defect;
     int rollTicksElapsed = 0;
 
-    Ball() : id(QUuid::createUuid().toString()), radius(35.0) {}
+    SimulatedBall() : trueId(QUuid::createUuid().toString()) {}
 };
 
-// Represents one slot in the 8-bucket conveyor
 struct BucketSlot {
     bool hasBall = false;
-    Ball ball;
+    SimulatedBall ball;
 };
 
-// CV analysis result per bucket in a single trigger frame
+// CV observation for a single bucket slot in one frame
 struct BucketObservation {
-    int slotIndex;         // 0 to 7
-    bool detectedBall;
-    QColor detectedColor;
-    double measuredRadius;
-    double defectAreaPixels;
-    bool hasDefect;
+    int slotIndex = 0;       // 0 to 7
+    bool detectedBall = false;
+    QColor measuredColor;
+    double measuredRadius = 0.0;
+    double defectAreaPixels = 0.0;
+    bool hasDefectSignal = false;
 };
 
-// Final fused verdict for a ball across its 8-bucket lifespan
+// Temporal accumulation of a single ball across its 8-bucket lifespan
+struct BallTrack {
+    QString trackId;
+    int currentSlotIndex = -1;
+    int totalTriggersObserved = 0;
+    
+    QVector<BucketObservation> history;
+
+    BallTrack() : trackId(QUuid::createUuid().toString()) {}
+};
+
+// Final output payload
 struct BallFusedVerdict {
     QString trackId;
     QColor dominantColor;
-    double avgRadius = 0.0;
-    bool defectDetected = false;
-    bool isDefective = false;
-    double maxDefectAreaObserved = 0.0;
-    int totalFramesTracked = 0;
+    double avgRadius;
+    bool isDefective;
+    double maxDefectAreaObserved;
+    int totalFramesTracked;
 };
-#endif // CONVEYORTYPES_H

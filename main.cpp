@@ -1,6 +1,6 @@
-#include <QCoreApplication>
+/*#include <QCoreApplication>
 #include <QTimer>
-#include "ConveyorManager.h"
+#include "conveyormanager.h"
 
 int main(int argc, char *argv[])
 {
@@ -13,4 +13,16 @@ int main(int argc, char *argv[])
 
     QTimer::singleShot(10000, &app, &QCoreApplication::quit);
     return app.exec();
+}
+*/
+#include "mainwindow.h"
+
+#include <QApplication>
+
+int main(int argc, char *argv[])
+{
+    QApplication a(argc, argv);
+    MainWindow w;
+    w.show();
+    return a.exec();
 }

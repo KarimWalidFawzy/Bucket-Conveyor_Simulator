@@ -15,19 +15,20 @@ find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets)
 set(PROJECT_SOURCES
         main.cpp
         mainwindow.cpp
-        mainwindow.h
-        mainwindow.ui
 )
 
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
-    qt_add_executable(Bucket-Conveyor_Simulator
-        MANUAL_FINALIZATION
-        ${PROJECT_SOURCES}
-        images.qrc
+  qt_add_executable(Bucket-Conveyor_Simulator MANUAL_FINALIZATION
+    capturer.h capturer.cpp
+    ball.h ball.cpp)
+target_sources(Bucket-Conveyor_Simulator
+  PRIVATE
+    images.qrc    ${PROJECT_SOURCES}
         ConveyorTypes.h
         conveyorstation.h conveyorstation.cpp
         stationworker.h stationworker.cpp
         conveyormanager.h
+        mainwindow.ui
     )
 # Define target properties for Android with Qt 6 as:
 #    set_property(TARGET Bucket-Conveyor_Simulator APPEND PROPERTY QT_ANDROID_PACKAGE_SOURCE_DIR
