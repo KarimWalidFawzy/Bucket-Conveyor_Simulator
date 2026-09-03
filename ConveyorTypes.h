@@ -6,6 +6,9 @@
 #include <QUuid>
 #include <QMetaType>
 
+constexpr double kBallDiameterMm = 50.0;
+constexpr double kBallDiameterPixels = 64.0;
+
 struct DefectPatch {
     bool exists = false;
     double angularCoverageRad = 0.0; // 90° or 180°
@@ -34,6 +37,7 @@ struct BucketObservation {
     bool detectedBall = false;
     QColor measuredColor;
     double measuredRadius = 0.0;
+    double measuredDiameterMm = 0.0;
     double defectAreaPixels = 0.0;
     bool hasDefectSignal = false;
 };
@@ -54,6 +58,7 @@ struct BallFusedVerdict {
     QString trackId;
     QColor dominantColor;
     double avgRadius;
+    double avgDiameterMm = 0.0;
     bool isDefective;
     double maxDefectAreaObserved;
     int totalFramesTracked;

@@ -19,6 +19,15 @@ public:
     }
 
 public slots:
+    void flushActiveTracks() {
+        for (auto& activeTrack : m_activeTracks) {
+            if (activeTrack.has_value()) {
+                finalizeTrackVerdict(activeTrack.value());
+                activeTrack.reset();
+            }
+        }
+    }
+
     void processFrame(int stationId, uint64_t triggerIndex, QImage frame) {
         if (stationId != m_stationId) return;
 
@@ -111,6 +120,7 @@ private:
             }
             obs.detectedBall = true;
             obs.measuredRadius = qSqrt(coloredPixelCount / M_PI);
+            obs.measuredDiameterMm = (obs.measuredRadius * 2.0) * (kBallDiameterMm / kBallDiameterPixels);
             obs.measuredColor = QColor(sumR / coloredPixelCount, sumG / coloredPixelCount, sumB / coloredPixelCount);
             obs.defectAreaPixels = defectPixelCount;
             obs.hasDefectSignal = (defectPixelCount > 35);
@@ -130,6 +140,7 @@ private:
 
         uint64_t rAcc = 0, gAcc = 0, bAcc = 0;
         double radAcc = 0.0;
+        double diameterAcc = 0.0;
 
         int defectVotes = 0;
         for (const auto& obs : track.history) {
@@ -137,6 +148,7 @@ private:
             gAcc += obs.measuredColor.green();
             bAcc += obs.measuredColor.blue();
             radAcc += obs.measuredRadius;
+            diameterAcc += obs.measuredDiameterMm;
 
             if (obs.hasDefectSignal) {
                 defectVotes++;
@@ -150,6 +162,7 @@ private:
         int count = track.history.size();
         verdict.dominantColor = QColor(rAcc / count, gAcc / count, bAcc / count);
         verdict.avgRadius = radAcc / count;
+        verdict.avgDiameterMm = diameterAcc / count;
         verdict.isDefective = defectVotes * 2 >= count;
         verdict.confidence = qBound(0.0, qAbs(defectVotes - (count - defectVotes)) / static_cast<double>(count), 1.0);
 

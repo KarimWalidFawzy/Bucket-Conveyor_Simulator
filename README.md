@@ -14,6 +14,8 @@ A Qt Widgets application that simulates three camera stations inspecting balls a
 - Majority-vote defect classification with a confidence score.
 - Live rendering of Station 0 and verdict updates in the status bar.
 - Manual `Trigger` button to advance all stations once in addition to their timers.
+- Incremental CSV logging of every finalized verdict.
+- Per-frame latency, throughput, and pending-work instrumentation.
 
 ## Requirements
 
@@ -60,6 +62,31 @@ Start the executable. The three station pipelines begin automatically when the m
 - The status bar reports trigger activity and finalized ball verdicts.
 - `PASS` means the fused observations did not meet the defect-vote threshold; `REJECT` means at least half of the observations reported a defect.
 
+## Results CSV
+
+At startup, the application creates or replaces `results.csv` in its working directory. One row is appended whenever a ball track leaves the final bucket slot, and the row is flushed immediately so results remain available during the run. A new application launch starts a fresh log.
+
+The CSV columns are:
+
+```text
+station_id, track_id, result, frames_tracked, confidence,
+dominant_red, dominant_green, dominant_blue, average_radius,
+max_defect_area, contributing_triggers
+```
+
+`contributing_triggers` contains the trigger indexes that contributed to the verdict, separated by semicolons. The result is `PASS` or `REJECT`. Diameter is calibrated using a 64-pixel simulated ball diameter equal to 50 mm.
+
+When the application closes, timers are stopped and active tracks are flushed, so balls still inside the conveyor are logged with their available (fewer than eight) contributing frames.
+
+The application also creates or replaces `pipeline_metrics.csv`. It records one row per completed frame with:
+
+```text
+station_id, trigger_index, latency_ms, pending_frames,
+generated_frames, processed_frames, effective_throughput_fps
+```
+
+`pending_frames` is the measured generated-minus-processed depth for a station. Every 100 completed frames, the same latency, throughput, pending depth, and maximum pending depth are reported to the application log. A stable zero or low pending depth and matching generated/processed totals indicate that the station is keeping pace without dropped results.
+
 ## How It Works
 
 1. `ConveyorManager` creates one `ConveyorStation`, `StationWorker`, and `QThread` for each station.
@@ -79,7 +106,7 @@ By default, a new bucket contains a ball 70% of the time. A generated ball has a
 | `conveyormanager.h` | Creates and coordinates station pipelines and threads |
 | `conveyorstation.*` | Advances buckets, generates balls, and renders frames |
 | `stationworker.*` | Extracts observations, tracks balls, and fuses verdicts |
-| `ConveyorTypes.h` | Shared simulation, observation, tracking, and verdict data types |
+| `ConveyorTypes.h` | Shared simulation, observation, tracking, calibration, and verdict data types |
 | `mainwindow.ui` | Qt Designer layout for the main window |
 | `CMakeLists.txt` | Qt/CMake build configuration |
 
