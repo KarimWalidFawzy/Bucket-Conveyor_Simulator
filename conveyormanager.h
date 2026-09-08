@@ -20,8 +20,8 @@ public:
         , m_metricsFile("pipeline_metrics.csv")
         , m_metricsStream(&m_metricsFile)
     {
-        qRegisterMetaType<BallFusedVerdict>("BallFusedVerdict");
-        m_metricsClock.start();
+        qRegisterMetaType<BallFusedVerdict>("BallFusedVerdict");// Register the custom type for signal-slot communication
+        m_metricsClock.start(); // Start the timer for latency and throughput measurements
         if (m_resultsFile.open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Truncate)) {
             m_resultsStream << "station_id,track_id,result,frames_tracked,confidence,dominant_red,dominant_green,dominant_blue,diameter_mm,max_defect_area,contributing_triggers\n";
             m_resultsStream.flush();
