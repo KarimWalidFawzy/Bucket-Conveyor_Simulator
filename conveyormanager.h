@@ -34,7 +34,6 @@ public:
         } else {
             qWarning() << "Could not open pipeline_metrics.csv for writing:" << m_metricsFile.errorString();
         }
-
         for (int i = 0; i < stationCount; ++i) {
             auto* station = new ConveyorStation(i);
             auto* worker = new StationWorker(i);

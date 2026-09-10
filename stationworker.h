@@ -54,7 +54,8 @@ public slots:
                     track.totalTriggersObserved += 1;
                     track.history.append(obs);
                     nextActiveTracks[i] = track;
-                } else {
+                }
+                else {
                     BallTrack newTrack;
                     newTrack.currentSlotIndex = i;
                     newTrack.totalTriggersObserved = 1;
